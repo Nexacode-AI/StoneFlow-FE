@@ -17,9 +17,7 @@ export default function AlertsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [filter, setFilter] = useState<Filter>('ALL');
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-
-  useEffect(() => { setLastUpdated(new Date()); }, []);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   // Reply state
   const [replyAlertId, setReplyAlertId] = useState<string | null>(null);
@@ -28,7 +26,6 @@ export default function AlertsPage() {
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<{ workerName: string; jobNumber: string; type: 'reply' | 'resolve' } | null>(null);
   const [page, setPage]           = useState(1);
-  const [resolveAlert, setResolveAlert] = useState<AlertStep | null>(null);
   const replyInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -57,8 +54,8 @@ export default function AlertsPage() {
 
   useEffect(() => { setPage(1); }, [filter]);
 
-  function getAdminId() {
-    try { return JSON.parse(localStorage.getItem('auth_user') ?? '{}').id ?? 'admin'; } catch { return 'admin'; }
+  function getAdminId(): string | null {
+    try { return JSON.parse(localStorage.getItem('auth_user') ?? '{}').id ?? null; } catch { return null; }
   }
 
   function showToast(workerName: string, jobNumber: string, type: 'reply' | 'resolve') {
@@ -68,12 +65,15 @@ export default function AlertsPage() {
 
   async function handleAlertReply(alert: AlertStep) {
     if (!replyText.trim()) return;
+    const adminId = getAdminId();
+    if (!adminId) return;
     setReplySending(true);
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/messages/reply-step`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stepId: alert.id, adminId: getAdminId(), message: replyText.trim() }),
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ stepId: alert.id, adminId, message: replyText.trim() }),
       });
       if (res.ok) {
         const json = await res.json();
@@ -87,18 +87,18 @@ export default function AlertsPage() {
   }
 
   async function handleResolveStep(alert: AlertStep) {
-    setResolveAlert(alert);
-  }
-
-  async function confirmResolve() {
-    if (!resolveAlert) return;
-    const alert = resolveAlert;
-    setResolveAlert(null);
+    const adminId = getAdminId();
+    if (!adminId) return;
+    const confirmed = window.confirm(
+      `Resolve the alert for ${alert.assignedUser?.name ?? 'this worker'} on ${alert.job.jobNumber} (${alert.name})? The worker will be notified to continue.`,
+    );
+    if (!confirmed) return;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/messages/resolve-step`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stepId: alert.id, adminId: getAdminId() }),
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ stepId: alert.id, adminId }),
       });
       if (res.ok) {
         const json = await res.json();
@@ -169,7 +169,7 @@ export default function AlertsPage() {
                   <span className="px-2.5 py-0.5 bg-red-500 text-white text-sm font-bold rounded-full">{visible.length}</span>
                 )}
               </h1>
-              <p className="text-xs text-slate-500 mt-0.5">Last updated: {lastUpdated ? lastUpdated.toLocaleTimeString() : '—'}</p>
+              <p className="text-xs text-slate-500 mt-0.5">Last updated: {lastUpdated.toLocaleTimeString()}</p>
             </div>
             <button
               onClick={load}
@@ -384,38 +384,6 @@ export default function AlertsPage() {
 
         </div>
       </main>
-
-      {/* Resolve Confirmation Dialog */}
-      {resolveAlert && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(4px)' }}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
-            <div className="w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center mx-auto mb-4">
-              <CheckCircle2 size={24} className="text-green-600" />
-            </div>
-            <h3 className="font-bold text-slate-800 text-center mb-1 text-lg">Resolve Alert?</h3>
-            <p className="text-sm text-slate-500 text-center mb-1">
-              <span className="font-semibold text-slate-700">{resolveAlert.assignedUser?.name ?? 'Worker'}</span> — {resolveAlert.name}
-            </p>
-            <p className="text-xs text-slate-400 text-center mb-6">
-              Job {resolveAlert.job.jobNumber} · The worker will be notified to continue.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setResolveAlert(null)}
-                className="flex-1 py-2.5 text-sm font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmResolve}
-                className="flex-1 py-2.5 text-sm font-bold text-white bg-green-500 rounded-xl hover:bg-green-600 transition-colors shadow-sm"
-              >
-                Resolve
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

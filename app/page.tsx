@@ -45,7 +45,6 @@ export default function DashboardPage() {
   const [replySending, setReplySending] = useState(false);
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<{ workerName: string; jobNumber: string; type: 'reply' | 'resolve' } | null>(null);
-  const [resolveAlert, setResolveAlert] = useState<AlertStep | null>(null);
   const replyInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -103,13 +102,11 @@ export default function DashboardPage() {
   }
 
   async function handleResolveStep(alert: AlertStep) {
-    setResolveAlert(alert);
-  }
+    const confirmed = window.confirm(
+      `Resolve the alert for ${alert.assignedUser?.name ?? 'this worker'} on ${alert.job.jobNumber} (${alert.name})? The worker will be notified to continue.`,
+    );
+    if (!confirmed) return;
 
-  async function confirmResolve() {
-    if (!resolveAlert) return;
-    const alert = resolveAlert;
-    setResolveAlert(null);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/messages/resolve-step`, {
         method: 'POST',
@@ -418,38 +415,6 @@ export default function DashboardPage() {
           </>
         )}
       </main>
-
-      {/* Resolve Confirmation Dialog */}
-      {resolveAlert && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(4px)' }}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
-            <div className="w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center mx-auto mb-4">
-              <CheckCircle2 size={24} className="text-green-600" />
-            </div>
-            <h3 className="font-bold text-slate-800 text-center mb-1 text-lg">Resolve Alert?</h3>
-            <p className="text-sm text-slate-500 text-center mb-1">
-              <span className="font-semibold text-slate-700">{resolveAlert.assignedUser?.name ?? 'Worker'}</span> — {resolveAlert.name}
-            </p>
-            <p className="text-xs text-slate-400 text-center mb-6">
-              Job {resolveAlert.job.jobNumber} · The worker will be notified to continue.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setResolveAlert(null)}
-                className="flex-1 py-2.5 text-sm font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmResolve}
-                className="flex-1 py-2.5 text-sm font-bold text-white bg-green-500 rounded-xl hover:bg-green-600 transition-colors shadow-sm"
-              >
-                Resolve
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }
