@@ -9,9 +9,10 @@ import AlertNotifier from './AlertNotifier';
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isAuthPage = pathname.startsWith('/sign-in');
+  const isClientPortal = pathname.startsWith('/client');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  if (isAuthPage) {
+  if (isAuthPage || isClientPortal) {
     return <>{children}</>;
   }
 
