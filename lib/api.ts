@@ -63,6 +63,7 @@ export interface WorkflowStep {
 export interface Job {
   id: string;
   jobNumber: string;
+  clientToken?: string | null;
   title: string;
   clientName: string;
   clientPhone?: string;
@@ -185,4 +186,53 @@ export const whatsappApi = {
       success: boolean;
       data: { from: string; hasSid: boolean; hasToken: boolean; verifyTokenSet: boolean };
     }>('/webhooks/config'),
+};
+
+// ─── Client Portal ─────────────────────────────────────────────────────────────
+
+export interface ClientJobStep {
+  id: string;
+  stepNumber: number;
+  name: string;
+  description?: string;
+  status: StepStatus;
+  startedAt?: string;
+  completedAt?: string;
+  dueAt?: string;
+}
+
+export interface ClientJob {
+  id: string;
+  jobNumber: string;
+  title: string;
+  clientName: string;
+  material?: string;
+  color?: string;
+  measurements?: string;
+  deadline: string;
+  status: JobStatus;
+  priority: Priority;
+  totalSteps: number;
+  completedSteps: number;
+  description?: string;
+  createdAt: string;
+  completedAt?: string;
+  workflowSteps: ClientJobStep[];
+}
+
+// Uses a plain fetch so it works without the auth interceptor
+export const clientPortalApi = {
+  track: async (token: string): Promise<ClientJob> => {
+    const res = await fetch(`${API_BASE}/client/track/${encodeURIComponent(token)}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error((err as { message?: string }).message || 'Tracking link not found.');
+    }
+    const json = await res.json() as { success: boolean; data: ClientJob };
+    return json.data;
+  },
+  generate: (jobId: string) =>
+    api.post<{ success: boolean; token: string }>(`/client/generate/${jobId}`),
+  revoke: (jobId: string) =>
+    api.delete<{ success: boolean; message: string }>(`/client/revoke/${jobId}`),
 };

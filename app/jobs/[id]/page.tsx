@@ -5,9 +5,9 @@ import Link from 'next/link';
 import {
   ArrowLeft, Play, RefreshCw, Clock, CheckCircle2, AlertTriangle,
   Phone, User, Calendar, Layers, Camera, MessageSquare, Briefcase,
-  ChevronRight, HelpCircle, Timer,
+  ChevronRight, HelpCircle, Timer, Share2, Link2, EyeOff,
 } from 'lucide-react';
-import { jobsApi, Job, AuditLog } from '@/lib/api';
+import { jobsApi, clientPortalApi, Job, AuditLog } from '@/lib/api';
 import { StatusBadge, PriorityBadge } from '@/components/Badges';
 import WorkflowTimeline from '@/components/WorkflowTimeline';
 import { useWebSocket, WsMessage } from '@/hooks/useWebSocket';
@@ -66,6 +66,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   const [starting, setStarting] = useState(false);
   const [tab, setTab] = useState<'workflow' | 'activity' | 'photos' | 'timers'>('workflow');
   const [toast, setToast] = useState<{ kind: 'success' | 'error' | 'info'; text: string } | null>(null);
+  const [sharingLink, setSharingLink] = useState(false);
 
   const showToast = (kind: 'success' | 'error' | 'info', text: string) => {
     setToast({ kind, text });
@@ -127,6 +128,38 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
       showToast('error', msg || 'Start failed. Make sure backend is running.');
     } finally {
       setStarting(false);
+    }
+  };
+
+  const handleShareLink = async () => {
+    if (!job) return;
+    setSharingLink(true);
+    try {
+      let token = job.clientToken;
+      if (!token) {
+        const res = await clientPortalApi.generate(job.id);
+        token = res.data.token;
+        // refresh so clientToken is reflected in state
+        await load();
+      }
+      const url = `${window.location.origin}/client/track/${token}`;
+      await navigator.clipboard.writeText(url);
+      showToast('success', 'Client tracking link copied to clipboard!');
+    } catch {
+      showToast('error', 'Could not generate tracking link. Make sure the backend is running.');
+    } finally {
+      setSharingLink(false);
+    }
+  };
+
+  const handleRevokeLink = async () => {
+    if (!job) return;
+    try {
+      await clientPortalApi.revoke(job.id);
+      await load();
+      showToast('info', 'Client tracking link has been revoked.');
+    } catch {
+      showToast('error', 'Could not revoke tracking link.');
     }
   };
 
@@ -253,6 +286,35 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
           >
             <RefreshCw size={16} />
           </button>
+          {/* Client Portal Share/Revoke */}
+          {job.clientToken ? (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleShareLink}
+                disabled={sharingLink}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors disabled:opacity-60"
+                title="Copy client tracking link"
+              >
+                <Link2 size={13} /> {sharingLink ? 'Copying…' : 'Copy Link'}
+              </button>
+              <button
+                onClick={handleRevokeLink}
+                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                title="Revoke client tracking link"
+              >
+                <EyeOff size={14} />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleShareLink}
+              disabled={sharingLink}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-60"
+              title="Generate client tracking link"
+            >
+              <Share2 size={13} /> {sharingLink ? 'Generating…' : 'Share to Client'}
+            </button>
+          )}
           {job.status === 'PENDING' && (
             <button
               onClick={handleStart}
