@@ -96,7 +96,7 @@ export default function UsersPage() {
       if (d.status === 'sent') {
         showToast('success', `WhatsApp test sent to ${u.name} (${d.to}). SID: ${d.sid}`);
       } else if (d.status === 'demo_sent') {
-        showToast('error', `Demo mode: ${d.errorMessage ?? 'Twilio credentials missing.'}`);
+        showToast('error', `Demo mode: ${d.errorMessage ?? 'Meta API credentials missing.'}`);
       } else {
         showToast('error', `Failed (code ${d.errorCode ?? 'n/a'}): ${d.errorMessage ?? 'Unknown error'}`);
       }

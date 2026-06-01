@@ -719,7 +719,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
               </h3>
               <div className="flex items-center gap-2 text-sm text-slate-600">
                 <div className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
-                Twilio integration active
+                Meta WhatsApp Cloud API active
               </div>
               <p className="text-xs text-slate-400 mt-1.5">
                 Workers receive task alerts via WhatsApp and reply DONE / ISSUE / HELP
